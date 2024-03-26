@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import transforms
 from torchvision.models import mobilenet_v3_small
 from PIL import Image
+from torch.utils.tensorboard import SummaryWriter
 import os
 
 # Define your custom dataset
@@ -42,18 +43,20 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
-
 # Define hyperparameters
-batch_size = 32
-lr = 0.015
-num_epochs = 10
+batch_size = 16
+lr = 0.01
+num_epochs = 50
 
 # Initialize your dataset
 dataset = CustomDataset(data_dir='./dataset_bitirme', transform=transform)
 
+print(dataset.classes)
+
+print(len(dataset.classes))
 # Split dataset into train, validation, and test sets
-train_size = int(0.7 * len(dataset))  
-val_size = int(0.15 * len(dataset))  
+train_size = int(0.8 * len(dataset))  
+val_size = int(0.1 * len(dataset))  
 test_size = len(dataset) - train_size - val_size  
 
 train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
@@ -66,7 +69,7 @@ test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
 # Load pre-trained MobileNetV3 model
 model = mobilenet_v3_small(weights=True)
 num_ftrs = model.classifier[3].in_features
-model.classifier[3] = nn.Linear(num_ftrs, 3)
+model.classifier[3] = nn.Linear(num_ftrs, len(dataset.classes))
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
@@ -75,6 +78,8 @@ optimizer = optim.Adam(model.parameters(), lr=lr)
 # Move model to GPU if available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
+# Define the learning rate scheduler
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
 # Training loop
 for epoch in range(num_epochs):
@@ -97,6 +102,9 @@ for epoch in range(num_epochs):
     
     epoch_loss = running_loss / len(train_set)
     print(f'Training - Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
+    
+    # Update the learning rate
+    scheduler.step()
 
     # Validation loop
     val_loss = 0.0
