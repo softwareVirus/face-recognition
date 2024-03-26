@@ -9,6 +9,14 @@ import numpy as np
 import pyautogui
 from PIL import ImageGrab 
 
+
+
+
+def scale_image(image, scale_factor=1.5):
+    height, width = image.shape[:2]
+    return cv2.resize(image, (int(width * scale_factor), int(height * scale_factor)), interpolation=cv2.INTER_LINEAR)
+
+
 class CustomDataset(Dataset):
     def __init__(self, data_dir, transform=None):
         self.data_dir = data_dir
@@ -73,19 +81,20 @@ while True:
     screen = np.array(screen)
     screen = cv2.cvtColor(screen, cv2.COLOR_RGB2BGR)
 
+    scaled_screenshot = scale_image(screen, scale_factor=1.5)
 
     # Detect faces
-    results = face_detection.process(cv2.cvtColor(screen, cv2.COLOR_BGR2RGB))
+    results = face_detection.process(cv2.cvtColor(scaled_screenshot, cv2.COLOR_BGR2RGB))
 
     if results.detections:
         for detection in results.detections:
             bboxC = detection.location_data.relative_bounding_box
-            ih, iw, _ = screen.shape
+            ih, iw, _ = scaled_screenshot.shape
             bbox = int(bboxC.xmin * iw), int(bboxC.ymin * ih), int(bboxC.width * iw), int(bboxC.height * ih)
             
             # Extract face region
             x, y, w, h = bbox
-            face_region = screen[y:y+h, x:x+w]
+            face_region = scaled_screenshot[y:y+h, x:x+w]
             
             # Preprocess the detected face image
             preprocessed_face = preprocess(face_region)
@@ -99,8 +108,8 @@ while True:
                 class_name = class_names[predicted_label]
             
                 # Draw bounding box and recognition results with adjusted colors
-                cv2.rectangle(screen, (x, y), (x+w, y+h), (255, 0, 0), 2)  # Blue bounding box
-                cv2.putText(screen, class_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)  # Green text
+                cv2.rectangle(scaled_screenshot, (x, y), (x+w, y+h), (255, 0, 0), 2)  # Blue bounding box
+                cv2.putText(scaled_screenshot, class_name, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)  # Green text
 
     cv2.imshow('Face Recognition', screen)
     if cv2.waitKey(1) & 0xFF == ord('q'):
